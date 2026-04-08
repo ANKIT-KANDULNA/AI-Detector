@@ -2,7 +2,13 @@
 models/
 backend/models/
 
-# Ignore local python environments
+node_modules/
+backend/venv/
 venv/
-__pycache__/
 .env
+*.h5
+*.pth
+*.pkl
+datasets/
+__pycache__/
+.pytest_cache/
