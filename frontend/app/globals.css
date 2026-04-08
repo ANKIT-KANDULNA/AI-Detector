@@ -1,0 +1,66 @@
+/* 
+  Tailwind's three layers:
+  - base: resets and HTML element defaults
+  - components: reusable class groups
+  - utilities: the actual utility classes (flex, p-4, etc.)
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import custom fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+@layer base {
+  /* Set the default background and text color for the whole app */
+  body {
+    background-color: #07080f;
+    color: #e8eaf0;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* Remove default outline and replace with a visible one for accessibility */
+  *:focus-visible {
+    outline: 2px solid #4fc3f7;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* 
+    Custom component classes — reusable groups of utilities.
+    Instead of repeating 10 classes everywhere, you make one class here.
+  */
+  .card {
+    @apply bg-surface border border-border rounded-2xl;
+  }
+
+  .label-badge {
+    @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium tracking-widest uppercase;
+  }
+}
+
+@layer utilities {
+  /* Gradient text utility — used for headings */
+  .text-gradient {
+    background: linear-gradient(135deg, #4fc3f7, #00e676);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Scanline overlay effect — gives it a forensics monitor feel */
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 4px
+    );
+    pointer-events: none;
+  }
+}

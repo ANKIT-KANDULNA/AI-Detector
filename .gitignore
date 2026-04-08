@@ -1,0 +1,8 @@
+# Ignore the models folder where HF downloads files
+models/
+backend/models/
+
+# Ignore local python environments
+venv/
+__pycache__/
+.env
