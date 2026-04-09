@@ -3,7 +3,10 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-import tensorflow as tf
+try:
+    import tflite_runtime.interpreter as tflite
+except ImportError:
+    from tensorflow import lite as tflite
 from PIL import Image
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,6 +56,8 @@ app.add_middleware(
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 cnn_model = None
+cnn_input_details = None
+cnn_output_details = None
 gan_model = None
 
 # ── Model Loading from Hugging Face ─────────────────────────────────────────
@@ -62,11 +67,15 @@ def load_models():
     repo_id = "ankitkandulna/ai-detector-model"
     os.makedirs("./models", exist_ok=True)
 
-    # Load CNN (TensorFlow)
+    # Load CNN (TFLite)
     try:
-        cnn_path = hf_hub_download(repo_id=repo_id, filename="best_model.h5", cache_dir="./models")
-        cnn_model = tf.keras.models.load_model(cnn_path)
-        print("✅ CNN Model Loaded from Hub")
+        # Load the local optimized TFLite model instead of downloading 180MB h5 model
+        cnn_model = tflite.Interpreter(model_path="best_model_fp16.tflite")
+        cnn_model.allocate_tensors()
+        global cnn_input_details, cnn_output_details
+        cnn_input_details = cnn_model.get_input_details()
+        cnn_output_details = cnn_model.get_output_details()
+        print("✅ CNN TFLite Model Loaded")
     except Exception as e:
         print(f"❌ CNN Load Failed: {e}")
 
@@ -123,7 +132,9 @@ async def predict(
     # 2. Run CNN Inference
     if mode in ["cnn", "ensemble"] and cnn_model:
         cnn_input = preprocess_image(image_bytes, (256, 256), "cnn")
-        score = float(cnn_model.predict(cnn_input, verbose=0)[0][0])
+        cnn_model.set_tensor(cnn_input_details[0]['index'], cnn_input)
+        cnn_model.invoke()
+        score = float(cnn_model.get_tensor(cnn_output_details[0]['index'])[0][0])
         results["cnn"] = {
             "score": round(score, 4),
             "label": "FAKE" if score > 0.5 else "REAL"

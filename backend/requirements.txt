@@ -3,9 +3,9 @@ fastapi
 uvicorn
 python-multipart
 gunicorn
-tensorflow-cpu
+tflite-runtime
 torch
 torchvision
 numpy<2.0.0
 pillow
-huggingface_hub
+huggingface_hub
