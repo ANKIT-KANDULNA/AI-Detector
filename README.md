@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🔍 AI Image Detector
 
 A full-stack deep learning application that detects whether an image is **AI-generated** or **real** using an ensemble of a **Custom CNN** and a **GAN Discriminator**. Built with a **Next.js** frontend and a **FastAPI** backend, deployed on **Render**.
@@ -454,3 +455,6 @@ This project is open source and available under the [MIT License](LICENSE).
 <p align="center">
   Built with ❤️ by <a href="https://github.com/ankitkandulna">Ankit Kandulna</a>
 </p>
+=======
+DEEPFAKE IMAGE DETECTION
+>>>>>>> c28293e643bdc41adb102bd8354e0361d8bd506d
