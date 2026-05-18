@@ -77,7 +77,7 @@ export default function ImageUploader() {
   return (
     <div className="max-w-xl mx-auto px-4">
 
-      {/* 🔥 MODEL SELECTOR */}
+      {/* MODEL SELECTOR */}
       <div className="flex gap-2 mb-6 mt-6">
         {(['cnn', 'gan'] as ModelType[]).map((type) => (
           <button

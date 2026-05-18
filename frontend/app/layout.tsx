@@ -22,11 +22,7 @@ export const metadata: Metadata = {
   description: 'Detect AI-generated images and videos with deep learning.',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode}) {
   return (
     <html lang="en">
       <body className="min-h-screen relative overflow-x-hidden">
