@@ -17,7 +17,7 @@ export default function Home() {
 
   return (
     <div className="min-h-[calc(100vh-57px)] px-4 py-16 flex flex-col items-center">
-      <div className="text-center max-w-2xl mx-auto flex-1 flex flex-col justify-center mb-24">
+      <div className="text-center max-w-2xl mx-auto flex-1 flex flex-col justify-center items-center mb-24">
 
         {/* Hero badge */}
         <motion.div
