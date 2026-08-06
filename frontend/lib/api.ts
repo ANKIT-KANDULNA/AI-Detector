@@ -11,13 +11,30 @@ export interface PredictionResult {
   confidence: number;
   details?: Record<string, any>;
   filename: string;
+  model_name?: string;
 }
 
-export async function predictImage(file: File, modelType: ModelType = 'cnn'): Promise<PredictionResult> {
+export async function fetchAvailableModels(): Promise<string[]> {
+  const response = await fetch(`${API_URL}/models`);
+  if (!response.ok) {
+    return ['best'];
+  }
+  const data = await response.json();
+  return data.models || ['best'];
+}
+
+export async function predictImage(
+  file: File, 
+  modelType: ModelType = 'cnn',
+  modelName: string = 'best',
+  threshold: number = 0.35
+): Promise<PredictionResult> {
   const formData = new FormData();
   formData.append('image', file);
 
-  const response = await fetch(`${API_URL}/predict?mode=${modelType}`, {
+  const response = await fetch(
+    `${API_URL}/predict?mode=${modelType}&model_name=${modelName}&threshold=${threshold}`, 
+    {
     method: 'POST',
     body: formData,
   });

@@ -55,6 +55,20 @@ app.add_middleware(
 )
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# ── Model Registry Setup ──────────────────────────────────────────────────────
+MODEL_REGISTRY = {}
+
+def register_model(name: str, cnn_path: str, gan_path: str):
+    MODEL_REGISTRY[name] = {
+        "cnn_path": cnn_path,
+        "gan_path": gan_path,
+    }
+
+register_model("best", "best_model_fp16.tflite", "./models/best_discriminator.pth")
+register_model("alt_model", "./models/alt_cnn.tflite", "./models/alt_discriminator.pth")
+
+# Currently loaded model references
+loaded_model_name = None
 cnn_model = None
 cnn_input_details = None
 cnn_output_details = None
@@ -62,15 +76,26 @@ gan_model = None
 
 # ── Model Loading from Hugging Face ─────────────────────────────────────────
 @app.on_event("startup")
-def load_models():
-    global cnn_model, gan_model
+def load_startup_models():
+    load_model_by_name("best")
+
+def load_model_by_name(name: str):
+    global cnn_model, gan_model, cnn_input_details, cnn_output_details, loaded_model_name
+    
+    if name not in MODEL_REGISTRY:
+        raise ValueError(f"Model {name} not found in registry")
+        
+    if loaded_model_name == name:
+        return # Already loaded
+        
+    paths = MODEL_REGISTRY[name]
     repo_id = "ankitkandulna/ai-detector-model"
     os.makedirs("./models", exist_ok=True)
 
     # Load CNN (TFLite)
     try:
-        # Load the local optimized TFLite model instead of downloading 180MB h5 model
-        cnn_model = tflite.Interpreter(model_path="best_model_fp16.tflite")
+        # Try to load local or default back to HF download (simplified for robustness)
+        cnn_model = tflite.Interpreter(model_path=paths["cnn_path"])
         cnn_model.allocate_tensors()
         global cnn_input_details, cnn_output_details
         cnn_input_details = cnn_model.get_input_details()
@@ -81,15 +106,20 @@ def load_models():
 
     # Load GAN (PyTorch)
     try:
-        gan_path = hf_hub_download(repo_id=repo_id, filename="best_discriminator.pth", cache_dir="./models")
+        # Optionally download if doesn't exist, but assuming it exists locally for now
+        gan_path = paths["gan_path"]
+        if not os.path.exists(gan_path):
+            gan_path = hf_hub_download(repo_id=repo_id, filename="best_discriminator.pth", cache_dir="./models")
         gan_model = Discriminator().to(DEVICE)
         # Attempting state_dict load first (best practice)
         state_dict = torch.load(gan_path, map_location=DEVICE)
         gan_model.load_state_dict(state_dict if isinstance(state_dict, dict) else state_dict.state_dict())
         gan_model.eval()
-        print("✅ GAN Model Loaded from Hub")
+        print(f"✅ GAN Model Loaded for {name}")
     except Exception as e:
         print(f"❌ GAN Load Failed: {e}")
+        
+    loaded_model_name = name
 
 # ── Preprocessing ────────────────────────────────────────────────────────────
 def preprocess_image(image_bytes: bytes, target_size: tuple, mode: str):
@@ -110,6 +140,7 @@ def preprocess_image(image_bytes: bytes, target_size: tuple, mode: str):
 def health():
     return {
         "status": "online",
+        "loaded_model": loaded_model_name,
         "models": {
             "cnn": cnn_model is not None,
             "gan": gan_model is not None
@@ -117,11 +148,21 @@ def health():
         "device": str(DEVICE)
     }
 
+@app.get("/models")
+def list_models():
+    return {"models": list(MODEL_REGISTRY.keys()), "current": loaded_model_name}
+
 @app.post("/predict")
 async def predict(
     image: UploadFile = File(...),
-    mode: str = Query(default="ensemble", enum=["cnn", "gan", "ensemble"])
+    mode: str = Query(default="ensemble", enum=["cnn", "gan", "ensemble"]),
+    model_name: str = Query(default="best", description="Name of the model to use from the registry"),
+    threshold: float = Query(default=0.35, description="Confidence threshold for classifying as FAKE")
 ):
+    try:
+        load_model_by_name(model_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     # 1. Validation
     if image.content_type not in ["image/jpeg", "image/png", "image/webp"]:
         raise HTTPException(status_code=400, detail="Unsupported image type")
@@ -137,7 +178,7 @@ async def predict(
         score = float(cnn_model.get_tensor(cnn_output_details[0]['index'])[0][0])
         results["cnn"] = {
             "score": round(score, 4),
-            "label": "FAKE" if score > 0.5 else "REAL"
+            "label": "FAKE" if score > threshold else "REAL"
         }
 
     # 3. Run GAN Inference
@@ -149,7 +190,7 @@ async def predict(
             # To stay consistent with CNN (High=Fake), we flip it:
             results["gan"] = {
                 "score": round(1 - score, 4), 
-                "label": "FAKE" if (1 - score) > 0.5 else "REAL"
+                "label": "FAKE" if (1 - score) > threshold else "REAL"
             }
 
     # 4. Process Final Output
@@ -167,7 +208,8 @@ async def predict(
         "success": True,
         "filename": image.filename,
         "mode_used": mode,
-        "prediction": "FAKE" if final_score > 0.5 else "REAL",
+        "model_name": model_name,
+        "prediction": "FAKE" if final_score > threshold else "REAL",
         "confidence": round(max(final_score, 1 - final_score) * 100, 2),
         "details": results
     }
