@@ -162,7 +162,6 @@ export default function Home() {
             </span>
           ))}
         </motion.div>
-        </motion.div>
       </div>
 
       {/* Coming Soon Section */}

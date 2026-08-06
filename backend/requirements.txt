@@ -6,6 +6,6 @@ gunicorn>=26.0.0
 tflite-runtime
 torch>=2.13.0
 torchvision>=0.28.0
-numpy>=1.26.4,<2.5.0
+numpy<2.0.0
 pillow>=12.3.0
 huggingface_hub>=1.26.0
